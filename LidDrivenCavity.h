@@ -9,15 +9,16 @@ public:
     LidDrivenCavity();
     ~LidDrivenCavity();
 
-    void SetDomainSize(double xlen, double ylen);
+    /*void SetDomainSize(double xlen, double ylen);
     void SetGridSize(int nx, int ny);
     void SetTimeStep(double deltat);
     void SetFinalTime(double finalt);
-    void SetReynoldsNumber(double Re);
+    void SetReynoldsNumber(double Re);*/
 
     void Initialise();
     void Integrate();
-    int validityCheck();
+    inline int validityCheck();
+    void currentOmegaBC();
 
     // Add any other public functions
 
@@ -61,9 +62,13 @@ void LidDrivenCavity::Initialise(){
     std::cout << "User input completed, validating..." << std::endl;
 }
 
-int LidDrivenCavity :: validityCheck(){
+inline int LidDrivenCavity :: validityCheck(){
     if (dt < Re*dx*dy/4) return 1;
     else return 0;
+}
+
+void LidDrivenCavity::currentOmegaBC(){
+
 }
 
 void LidDrivenCavity::Integrate(){

@@ -9,7 +9,6 @@ int main(int argc, char **argv)
     LidDrivenCavity* solver = new LidDrivenCavity();
 
     // Configure the solver here...
-    // 
     int check = 0;
     try{
     // read input from user and check validity 
@@ -21,6 +20,7 @@ int main(int argc, char **argv)
     else{
         cout << "Input Parameters pass the validation check" << endl;
     }
+    
     // Run the solver
     solver->Integrate();
     }
