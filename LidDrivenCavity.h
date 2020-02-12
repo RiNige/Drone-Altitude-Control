@@ -3,8 +3,7 @@
 #include <string>
 using namespace std;
 
-class LidDrivenCavity
-{
+class LidDrivenCavity{
 public:
     LidDrivenCavity();
     ~LidDrivenCavity();
@@ -15,10 +14,11 @@ public:
     void SetFinalTime(double finalt);
     void SetReynoldsNumber(double Re);*/
 
-    void Initialise();
+    double** Initialise();
     void Integrate();
     inline int validityCheck();
     void currentOmegaBC();
+    void deallocate(double** ptr);
 
     // Add any other public functions
 
@@ -51,15 +51,29 @@ LidDrivenCavity::LidDrivenCavity(){
 }
 
 LidDrivenCavity::~LidDrivenCavity(){
+
     delete this;
 }
 
-void LidDrivenCavity::Initialise(){
+
+
+double** LidDrivenCavity::Initialise(){
     std::cout << "Please input required parameters from the command line" << std::endl;
     cin >> Lx >> Ly >> Nx >> Ny >> dt >> T >>Re;
     dx = Lx/(Nx - 1);
     dy = Ly/(Ny - 1);
     std::cout << "User input completed, validating..." << std::endl;
+    double **cavity = new double*[Ny];
+    for(int i = 0; i < Nx; i++){
+        cavity[i] = new double [Nx];
+    }
+    for(int i = 0; i < Nx; i++){
+        for(int j = 0; j < Ny; j++){
+            cavity[j][i] = 0;
+        }
+    }
+    return cavity;
+
 }
 
 inline int LidDrivenCavity :: validityCheck(){
@@ -74,3 +88,11 @@ void LidDrivenCavity::currentOmegaBC(){
 void LidDrivenCavity::Integrate(){
     std::cout << "Not finished yet" << std::endl;
 }
+
+void LidDrivenCavity::deallocate(double** ptr){
+    for(int i = 0; i < Nx; i++){
+        delete[] ptr[i];
+    }
+    delete[] ptr;
+}
+
