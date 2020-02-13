@@ -1,6 +1,8 @@
 #pragma once
 
-#include <string>
+# include <string>
+# include <fstream>
+# include <iomanip>
 using namespace std;
 
 class LidDrivenCavity{
@@ -14,27 +16,26 @@ public:
     void SetFinalTime(double finalt);
     void SetReynoldsNumber(double Re);*/
 
-    double** Initialise();
+    void Initialise();
     void Integrate();
     inline int validityCheck();
     void currentOmegaBC();
-    void deallocate(double** ptr);
-
-    // Add any other public functions
+    void GetObj();
+    void deallocate();
 
 private:
-    double* v = nullptr;
-    double* s = nullptr;
+    double** v = nullptr;        // vorticity
+    double** s = nullptr;        // stream function
 
-    double dt;
-    double T;
-    int    Nx;
-    int    Ny;
-    double Lx;
-    double Ly;
-    double Re;
-    double dx;
-    double dy;
+    double dt;                   // Time step
+    double T;                    // Total time
+    int    Nx;                   // Number of grid in x
+    int    Ny;                   // Number of grid in y
+    double Lx;                   // Length of x
+    double Ly;                   // Length of y
+    double Re;                   // Reynolds number
+    double dx;                   // Distance between each grid in x 
+    double dy;                   // Distance between each grid in y
 };
 
 
@@ -48,35 +49,39 @@ LidDrivenCavity::LidDrivenCavity(){
     Re = 0;
     dx = 0;
     dy = 0;
+    cout << "A constructor has been called" << endl;
 }
 
 LidDrivenCavity::~LidDrivenCavity(){
-
-    delete this;
-}
-
+    cout << "A destructor has been called" << endl;
+};
 
 
-double** LidDrivenCavity::Initialise(){
+
+void LidDrivenCavity::Initialise(){
     std::cout << "Please input required parameters from the command line" << std::endl;
-    cin >> Lx >> Ly >> Nx >> Ny >> dt >> T >>Re;
+    cin >> Lx >> Ly >> Nx >> Ny >> dt >> T >> Re;
     dx = Lx/(Nx - 1);
     dy = Ly/(Ny - 1);
     std::cout << "User input completed, validating..." << std::endl;
-    double **cavity = new double*[Ny];
-    for(int i = 0; i < Nx; i++){
-        cavity[i] = new double [Nx];
+    v = new double*[Ny];
+    for(int i = 0; i < Nx; i++){           //creating 2d vorticity array using heap
+        v[i] = new double [Nx];
     }
-    for(int i = 0; i < Nx; i++){
+    s = new double*[Ny];
+    for(int i = 0; i < Nx; i++){           //creating 2d stream function array using heap
+        s[i] = new double [Nx];
+    }
+    for(int i = 0; i < Nx; i++){            // intialise both arrays by initial condition(0)
         for(int j = 0; j < Ny; j++){
-            cavity[j][i] = 0;
+            v[i][j] = 0;
+            s[i][j] = 0;
         }
     }
-    return cavity;
 
 }
 
-inline int LidDrivenCavity :: validityCheck(){
+inline int LidDrivenCavity :: validityCheck(){   // function is made inline to reduce computation time
     if (dt < Re*dx*dy/4) return 1;
     else return 0;
 }
@@ -86,13 +91,34 @@ void LidDrivenCavity::currentOmegaBC(){
 }
 
 void LidDrivenCavity::Integrate(){
+    double time = 0;
+    while(v && s){                 // check if v is nullptr
+    cout << "v and s are not nullptrs" << endl;
+    break;
+    }
     std::cout << "Not finished yet" << std::endl;
 }
 
-void LidDrivenCavity::deallocate(double** ptr){
+void LidDrivenCavity::GetObj(){
+    ofstream Vout("Stream.dat",ios::out|ios::trunc);
+        Vout.precision(5);
+        if(Vout.good()){                            // check if the file is ready to write
+            for(int i = 0; i < Nx; i++){            // output the stream function
+                for(int j = 0; j < Ny; j++){
+                    Vout << setw(10) << fixed << left << s[i][j];
+                }
+                Vout << endl;
+            }
+        }
+    Vout.close();
+}
+
+void LidDrivenCavity::deallocate(){
     for(int i = 0; i < Nx; i++){
-        delete[] ptr[i];
+        delete[] v[i];
+        delete[] s[i];
     }
-    delete[] ptr;
+    delete[] v;
+    delete[] s;
 }
 
