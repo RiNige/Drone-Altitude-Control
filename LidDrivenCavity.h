@@ -3,6 +3,8 @@
 # include <string>
 # include <fstream>
 # include <iomanip>
+# include <cmath>
+
 using namespace std;
 
 class LidDrivenCavity{
@@ -20,6 +22,8 @@ public:
     void Integrate();
     inline int validityCheck();
     void currentOmegaBC();
+    void currentOmegaInt();
+    void nextOmegaInt();
     void GetObj();
     void deallocate();
 
@@ -36,19 +40,21 @@ private:
     double Re;                   // Reynolds number
     double dx;                   // Distance between each grid in x 
     double dy;                   // Distance between each grid in y
+    double U;
 };
 
 
 LidDrivenCavity::LidDrivenCavity(){
-    dt = 0;
-    T = 0;
+    dt = 0.0;
+    T = 0.0;
     Nx = 0;
     Ny = 0;
-    Lx = 0;
-    Ly = 0;
-    Re = 0;
-    dx = 0;
-    dy = 0;
+    Lx = 0.0;
+    Ly = 0.0;
+    Re = 0.0;
+    dx = 0.0;
+    dy = 0.0;
+    U = 20.0;
     cout << "A constructor has been called" << endl;
 }
 
@@ -59,20 +65,20 @@ LidDrivenCavity::~LidDrivenCavity(){
 
 
 void LidDrivenCavity::Initialise(){
-    std::cout << "Please input required parameters from the command line" << std::endl;
+    cout << "Please input required parameters from the command line" << endl;
     cin >> Lx >> Ly >> Nx >> Ny >> dt >> T >> Re;
     dx = Lx/(Nx - 1);
     dy = Ly/(Ny - 1);
-    std::cout << "User input completed, validating..." << std::endl;
+    cout << "User input completed, validating..." << endl;
     v = new double*[Ny];
-    for(int i = 0; i < Nx; i++){           //creating 2d vorticity array using heap
+    for(int i = 0; i < Nx; i++){                    //creating 2d vorticity array using heap
         v[i] = new double [Nx];
     }
     s = new double*[Ny];
-    for(int i = 0; i < Nx; i++){           //creating 2d stream function array using heap
+    for(int i = 0; i < Nx; i++){                    //creating 2d stream function array using heap
         s[i] = new double [Nx];
     }
-    for(int i = 0; i < Nx; i++){            // intialise both arrays by initial condition(0)
+    for(int i = 0; i < Nx; i++){                    // intialise both arrays by initial condition(0)
         for(int j = 0; j < Ny; j++){
             v[i][j] = 0;
             s[i][j] = 0;
@@ -81,20 +87,52 @@ void LidDrivenCavity::Initialise(){
 
 }
 
-inline int LidDrivenCavity :: validityCheck(){   // function is made inline to reduce computation time
+inline int LidDrivenCavity :: validityCheck(){      // function is made inline to reduce computation time
     if (dt < Re*dx*dy/4) return 1;
     else return 0;
 }
 
 void LidDrivenCavity::currentOmegaBC(){
+    for(int i = 0; i < Nx; i++){
+        v[0][i] = (s[0][i] - s[1][i])*2/pow(dy,2) + 2*U/dy; // top boundary
+        v[Ny-1][i] = (s[Ny-1][i] - s[Ny-2][i])*2/pow(dy,2); // bottom boundary
+    }
 
+    for(int i = 1; i < Ny - 1; i++){
+        v[i][0] = (s[i][0] - s[i][1])*2/pow(dx,2); // left
+        v[i][Nx-1] = (s[i][Nx-1] - s[i][Nx-2])*2/pow(dx,2); // right
+    }
+}
+
+void LidDrivenCavity::currentOmegaInt(){
+    for(int i = 1; i < Nx - 1; i++){
+        for(int j = 0; j < Ny - 1; j++){
+            v[i][j] = (s[i][j+1] - 2*s[i][j] + s[i][j-1])/pow(dx,2) + (s[i-1][j] - 2*s[i][j] + s[i+1][j])/pow(dy,2);
+        }
+    }
+}
+
+void LidDrivenCavity:: nextOmegaInt(){
+    double part1 = 0, part2 = 0, part3 = 0;
+    for(int i = 1; i < Nx - 1; i++){
+        for(int j = 0; j < Ny - 1; j++){
+            part1 = (s[i-1][j] - s[i+1][j])/dy*(v[i][j+1] - v[i][j-1])/dx;
+            part2 = (s[i][j+1] - s[i][j-1])/dx*(v[i-1][j] - v[i+1][j])/dy;
+            part3 = (v[i][j+1] - 2*v[i][j] + v[i][j-1])/pow(dx,2) + (v[i-1][j] - 2*v[i][j] + v[i+1][j])/pow(dy,2);
+            v[i][j] += dt*(1/Re*part3 + part2 - part1);
+        }
+    }    
 }
 
 void LidDrivenCavity::Integrate(){
-    double time = 0;
-    while(v && s){                 // check if v is nullptr
-    cout << "v and s are not nullptrs" << endl;
-    break;
+    double time = 0.0;
+    while(time <= T){                                  // only integrate if both array has been given the value
+        if(time == 0) cout << "Simulation running..." << endl;
+        this->currentOmegaBC();
+        this->currentOmegaInt();
+        this->nextOmegaInt();
+        time += dt;
+        cout << time << endl;
     }
     std::cout << "Not finished yet" << std::endl;
 }
@@ -106,6 +144,15 @@ void LidDrivenCavity::GetObj(){
             for(int i = 0; i < Nx; i++){            // output the stream function
                 for(int j = 0; j < Ny; j++){
                     Vout << setw(10) << fixed << left << s[i][j];
+                }
+                Vout << endl;
+            }
+
+            Vout << endl << endl;
+
+            for(int i = 0; i < Nx; i++){            // output the vorticity function
+                for(int j = 0; j < Ny; j++){
+                    Vout << setw(10) << fixed << left << v[i][j];
                 }
                 Vout << endl;
             }
