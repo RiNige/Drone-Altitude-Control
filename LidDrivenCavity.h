@@ -1,16 +1,16 @@
-#pragma once
-
+# pragma once
 # include <string>
 # include <fstream>
 # include <iomanip>
 # include <cmath>
-
 using namespace std;
 
+//-----------------------Class Definition--------------------------------
+
 class LidDrivenCavity{
-public:
-    LidDrivenCavity();
-    ~LidDrivenCavity();
+    public:
+        LidDrivenCavity();
+        ~LidDrivenCavity();
 
     /*void SetDomainSize(double xlen, double ylen);
     void SetGridSize(int nx, int ny);
@@ -18,33 +18,51 @@ public:
     void SetFinalTime(double finalt);
     void SetReynoldsNumber(double Re);*/
 
-    void Initialise();
-    void Integrate();
-    inline int validityCheck();
-    void currentOmegaBC();
-    void currentOmegaInt();
-    void nextOmegaInt();
-    void GetObj();
-    void deallocate();
+        void Initialise();
+        void Integrate();
+        inline int validityCheck();
+        void currentOmegaBC();
+        void currentOmegaInt();
+        void nextOmegaInt();
+        void GetObj();
+        void deallocate();
+        friend class Poisson;
+    private:
+        double** v;        // vorticity
+        double** s;        // stream function
+        double dt;                   // Time step
+        double T;                    // Total time
+        int    Nx;                   // Number of grid in x
+        int    Ny;                   // Number of grid in y
+        double Lx;                   // Length of x
+        double Ly;                   // Length of y
+        double Re;                   // Reynolds number
+        double dx;                   // Distance between each grid in x 
+        double dy;                   // Distance between each grid in y
+        double U;
+};
 
-private:
-    double** v = nullptr;        // vorticity
-    double** s = nullptr;        // stream function
-
-    double dt;                   // Time step
-    double T;                    // Total time
-    int    Nx;                   // Number of grid in x
-    int    Ny;                   // Number of grid in y
-    double Lx;                   // Length of x
-    double Ly;                   // Length of y
-    double Re;                   // Reynolds number
-    double dx;                   // Distance between each grid in x 
-    double dy;                   // Distance between each grid in y
-    double U;
+class Poisson{
+    public:
+        Poisson();
+        void GetVal(double**  ptr1, double**  ptr2);
+    private:
+        
 };
 
 
+//------------------Poisson class memeber function--------------------------
+Poisson::Poisson(){}
+
+void Poisson::GetVal(double**  ptr1, double**  ptr2){
+    
+}
+
+//-----------------LidDrivenCavity Class member function---------------------
+
 LidDrivenCavity::LidDrivenCavity(){
+    double** s = nullptr;
+    double** v = nullptr;
     dt = 0.0;
     T = 0.0;
     Nx = 0;
@@ -131,8 +149,8 @@ void LidDrivenCavity::Integrate(){
         this->currentOmegaBC();
         this->currentOmegaInt();
         this->nextOmegaInt();
-        time += dt;
         cout << time << endl;
+        time += dt;
     }
     std::cout << "Not finished yet" << std::endl;
 }
