@@ -112,7 +112,7 @@ inline int LidDrivenCavity :: validityCheck(){      // function is made inline t
 
 void LidDrivenCavity::currentOmegaBC(){
     for(int i = 0; i < Nx; i++){
-        v[0][i] = (s[0][i] - s[1][i])*2/pow(dy,2) + 2*U/dy; // top boundary
+        v[0][i] = (s[0][i] - s[1][i])*2/pow(dy,2) - 2*U/dy; // top boundary
         v[Ny-1][i] = (s[Ny-1][i] - s[Ny-2][i])*2/pow(dy,2); // bottom boundary
     }
 
@@ -134,8 +134,8 @@ void LidDrivenCavity:: nextOmegaInt(){
     double part1 = 0, part2 = 0, part3 = 0;
     for(int i = 1; i < Nx - 1; i++){
         for(int j = 0; j < Ny - 1; j++){
-            part1 = (s[i-1][j] - s[i+1][j])/dy*(v[i][j+1] - v[i][j-1])/dx;
-            part2 = (s[i][j+1] - s[i][j-1])/dx*(v[i-1][j] - v[i+1][j])/dy;
+            part1 = (s[i-1][j] - s[i+1][j])/(2*dy)*(v[i][j+1] - v[i][j-1])/(2*dx);
+            part2 = (s[i][j+1] - s[i][j-1])/(2*dx)*(v[i-1][j] - v[i+1][j])/(2*dy);
             part3 = (v[i][j+1] - 2*v[i][j] + v[i][j-1])/pow(dx,2) + (v[i-1][j] - 2*v[i][j] + v[i+1][j])/pow(dy,2);
             v[i][j] += dt*(1/Re*part3 + part2 - part1);
         }
