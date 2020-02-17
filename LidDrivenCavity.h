@@ -19,13 +19,17 @@ class LidDrivenCavity{
     void SetReynoldsNumber(double Re);*/
 
         void Initialise();
+        inline int validityCheck(int n);
+        void OutputVal(double* ptr);
+        void InputVal(double*);
+        void CreateMatrix();
         void Integrate();
-        inline int validityCheck();
         void currentOmegaBC();
         void currentOmegaInt();
         void nextOmegaInt();
         void GetObj();
         void deallocate();
+        void valueCheck();
         friend class Poisson;
     private:
         double** v;        // vorticity
@@ -34,6 +38,8 @@ class LidDrivenCavity{
         double T;                    // Total time
         int    Nx;                   // Number of grid in x
         int    Ny;                   // Number of grid in y
+        int    Px;                   // Number of parallel in x
+        int    Py;                   // Number of parallel in y
         double Lx;                   // Length of x
         double Ly;                   // Length of y
         double Re;                   // Reynolds number
@@ -67,12 +73,14 @@ LidDrivenCavity::LidDrivenCavity(){
     T = 0.0;
     Nx = 0;
     Ny = 0;
+    Px = 0;
+    Py = 0;
     Lx = 0.0;
     Ly = 0.0;
     Re = 0.0;
     dx = 0.0;
     dy = 0.0;
-    U = 20.0;
+    U = 1.0;
     cout << "A constructor has been called" << endl;
 }
 
@@ -84,10 +92,60 @@ LidDrivenCavity::~LidDrivenCavity(){
 
 void LidDrivenCavity::Initialise(){
     cout << "Please input required parameters from the command line" << endl;
-    cin >> Lx >> Ly >> Nx >> Ny >> dt >> T >> Re;
+    cin >> Lx >> Ly >> Nx >> Ny >> Px >> Py >> dt >> T >> Re;
     dx = Lx/(Nx - 1);
     dy = Ly/(Ny - 1);
     cout << "User input completed, validating..." << endl;
+    //----------------------------------------------------------------------------
+    /*v = new double*[Ny];
+    for(int i = 0; i < Nx; i++){                    //creating 2d vorticity array using heap
+        v[i] = new double [Nx];
+    }
+    s = new double*[Ny];
+    for(int i = 0; i < Nx; i++){                    //creating 2d stream function array using heap
+        s[i] = new double [Nx];
+    }
+    for(int i = 0; i < Nx; i++){                    // intialise both arrays by initial condition(0)
+        for(int j = 0; j < Ny; j++){
+            v[i][j] = 0;
+            s[i][j] = 0;
+        }
+    }*/
+    //-----------------------------------------------------------------------------
+}
+
+inline int LidDrivenCavity :: validityCheck(int n){      // function is made inline to reduce computation time
+    if (dt < Re*dx*dy/4 ){
+        if (Px*Py == n){
+            if(Nx%Px == 0 && Ny%Py == 0){
+                return 3;
+            }
+            else return 2;
+        }
+        else return 1;
+    }
+    else return 0;
+}
+
+void LidDrivenCavity::OutputVal(double* ptr){
+    double newX = Nx/Px, newY = Ny/Py;
+    double data[7] = {Nx,Ny,dx,dy,dt,T,Re};
+    for(int i = 0; i < 7; i++){
+        ptr[i] = data[i];
+    }
+}
+
+void LidDrivenCavity::InputVal(double* ptr){
+    Nx = ptr[0];
+    Ny = ptr[1];
+    dx = ptr[2];
+    dy = ptr[3];
+    dt = ptr[4];
+    T  = ptr[5];
+    Re = ptr[6];
+}
+
+void LidDrivenCavity::CreateMatrix(){
     v = new double*[Ny];
     for(int i = 0; i < Nx; i++){                    //creating 2d vorticity array using heap
         v[i] = new double [Nx];
@@ -102,12 +160,6 @@ void LidDrivenCavity::Initialise(){
             s[i][j] = 0;
         }
     }
-
-}
-
-inline int LidDrivenCavity :: validityCheck(){      // function is made inline to reduce computation time
-    if (dt < Re*dx*dy/4) return 1;
-    else return 0;
 }
 
 void LidDrivenCavity::currentOmegaBC(){
@@ -185,5 +237,10 @@ void LidDrivenCavity::deallocate(){
     }
     delete[] v;
     delete[] s;
+}
+
+void LidDrivenCavity::valueCheck(){
+    cout << "dx = " << dx << endl << "dy = " << dy << endl;
+    cout << "dt = " << dt << endl << "T = " << T << endl;
 }
 
