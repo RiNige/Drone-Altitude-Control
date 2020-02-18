@@ -20,10 +20,10 @@ class LidDrivenCavity{
 
         void Initialise();
         inline int validityCheck(int n);
-        void OutputVal(double* ptr);
-        void InputVal(double*);
+        void OutputVal(double* ptr_double, int* ptr_int);
+        void InputVal(double* ptr_double, int* ptr_int, int rank);
         void CreateMatrix();
-        void Integrate();
+        void Integrate(int rank);
         void currentOmegaBC();
         void currentOmegaInt();
         void nextOmegaInt();
@@ -81,11 +81,9 @@ LidDrivenCavity::LidDrivenCavity(){
     dx = 0.0;
     dy = 0.0;
     U = 1.0;
-    cout << "A constructor has been called" << endl;
 }
 
 LidDrivenCavity::~LidDrivenCavity(){
-    cout << "A destructor has been called" << endl;
 };
 
 
@@ -96,66 +94,63 @@ void LidDrivenCavity::Initialise(){
     dx = Lx/(Nx - 1);
     dy = Ly/(Ny - 1);
     cout << "User input completed, validating..." << endl;
-    //----------------------------------------------------------------------------
-    /*v = new double*[Ny];
-    for(int i = 0; i < Nx; i++){                    //creating 2d vorticity array using heap
-        v[i] = new double [Nx];
-    }
-    s = new double*[Ny];
-    for(int i = 0; i < Nx; i++){                    //creating 2d stream function array using heap
-        s[i] = new double [Nx];
-    }
-    for(int i = 0; i < Nx; i++){                    // intialise both arrays by initial condition(0)
-        for(int j = 0; j < Ny; j++){
-            v[i][j] = 0;
-            s[i][j] = 0;
-        }
-    }*/
-    //-----------------------------------------------------------------------------
 }
 
 inline int LidDrivenCavity :: validityCheck(int n){      // function is made inline to reduce computation time
     if (dt < Re*dx*dy/4 ){
         if (Px*Py == n){
-            if(Nx%Px == 0 && Ny%Py == 0){
-                return 3;
-            }
-            else return 2;
+            return 2;
         }
         else return 1;
     }
     else return 0;
 }
 
-void LidDrivenCavity::OutputVal(double* ptr){
-    double newX = Nx/Px, newY = Ny/Py;
-    double data[7] = {Nx,Ny,dx,dy,dt,T,Re};
-    for(int i = 0; i < 7; i++){
-        ptr[i] = data[i];
+void LidDrivenCavity::OutputVal(double* ptr_double, int* ptr_int){
+    int newX = Nx/Px, newY = Ny/Py, myMod_x = Nx%Px, myMod_y = Ny%Py;
+    double data_double[5] = {dx,dy,dt,T,Re};
+    int data_int[6] = {newX,newY,myMod_x,myMod_y,Px,Py};
+    for(int i = 0; i < 6; i++){
+        ptr_int[i] = data_int[i];
+    }
+    for(int i = 0; i < 5; i++){
+        ptr_double[i] = data_double[i];
     }
 }
 
-void LidDrivenCavity::InputVal(double* ptr){
-    Nx = ptr[0];
-    Ny = ptr[1];
-    dx = ptr[2];
-    dy = ptr[3];
-    dt = ptr[4];
-    T  = ptr[5];
-    Re = ptr[6];
+void LidDrivenCavity::InputVal(double* ptr_double, int* ptr_int, int rank){
+    dx = ptr_double[0];
+    dy = ptr_double[1];
+    dt = ptr_double[2];
+    T  = ptr_double[3];
+    Re = ptr_double[4];
+    if (rank == 0){
+        Nx = ptr_int[0]+ptr_int[2];
+        Ny = ptr_int[1]+ptr_int[3];
+    }
+    else if(rank < ptr_int[4]) {
+        Nx = ptr_int[0];
+        Ny = ptr_int[1]+ptr_int[3];
+    }
+    else if(rank%ptr_int[4] == 0){
+        Nx = ptr_int[0]+ptr_int[2];
+        Ny = ptr_int[1];        
+    }
+    else{
+        Nx = ptr_int[0];
+        Ny = ptr_int[1];
+    }
 }
 
 void LidDrivenCavity::CreateMatrix(){
     v = new double*[Ny];
-    for(int i = 0; i < Nx; i++){                    //creating 2d vorticity array using heap
-        v[i] = new double [Nx];
-    }
     s = new double*[Ny];
-    for(int i = 0; i < Nx; i++){                    //creating 2d stream function array using heap
+    for(int i = 0; i < Ny; i++){                    //creating 2d vorticity array using heap
+        v[i] = new double [Nx];
         s[i] = new double [Nx];
     }
-    for(int i = 0; i < Nx; i++){                    // intialise both arrays by initial condition(0)
-        for(int j = 0; j < Ny; j++){
+    for(int i = 0; i < Ny; i++){                    // intialise both arrays by initial condition(0)
+        for(int j = 0; j < Nx; j++){
             v[i][j] = 0;
             s[i][j] = 0;
         }
@@ -194,7 +189,7 @@ void LidDrivenCavity:: nextOmegaInt(){
     }    
 }
 
-void LidDrivenCavity::Integrate(){
+void LidDrivenCavity::Integrate(int rank){
     double time = 0.0;
     while(time <= T){                                  // only integrate if both array has been given the value
         if(time == 0) cout << "Simulation running..." << endl;
@@ -231,7 +226,7 @@ void LidDrivenCavity::GetObj(){
 }
 
 void LidDrivenCavity::deallocate(){
-    for(int i = 0; i < Nx; i++){
+    for(int i = 0; i < Ny; i++){
         delete[] v[i];
         delete[] s[i];
     }
@@ -240,7 +235,6 @@ void LidDrivenCavity::deallocate(){
 }
 
 void LidDrivenCavity::valueCheck(){
-    cout << "dx = " << dx << endl << "dy = " << dy << endl;
-    cout << "dt = " << dt << endl << "T = " << T << endl;
+    cout << "Nx = " << Nx << endl << "Ny = " << Ny << endl;
 }
 
