@@ -23,11 +23,11 @@ class LidDrivenCavity{
         void OutputVal(double* ptr_double, int* ptr_int);
         void InputVal(double* ptr_double, int* ptr_int, int rank);
         void CreateMatrix();
-        void Integrate(int rank);
-        void currentOmegaBC();
-        void currentOmegaInt();
-        void nextOmegaInt();
-        void GetObj();
+        void Integrate(int *ptr, int rank);
+        void currentOmegaBC(int *pos);
+        void currentOmegaInt(int *pos);
+        void nextOmegaInt(int *pos);
+        void GetObj(int* ptr, int rank);
         void deallocate();
         void valueCheck();
         friend class Poisson;
@@ -66,6 +66,7 @@ void Poisson::GetVal(double**  ptr1, double**  ptr2){
 
 //-----------------LidDrivenCavity Class member function---------------------
 
+// Empty constructor
 LidDrivenCavity::LidDrivenCavity(){
     double** s = nullptr;
     double** v = nullptr;
@@ -83,11 +84,12 @@ LidDrivenCavity::LidDrivenCavity(){
     U = 1.0;
 }
 
+// Destructor
 LidDrivenCavity::~LidDrivenCavity(){
 };
 
 
-
+// Getting user input from command line
 void LidDrivenCavity::Initialise(){
     cout << "Please input required parameters from the command line" << endl;
     cin >> Lx >> Ly >> Nx >> Ny >> Px >> Py >> dt >> T >> Re;
@@ -96,21 +98,26 @@ void LidDrivenCavity::Initialise(){
     cout << "User input completed, validating..." << endl;
 }
 
+// Check the correctness of user input
 inline int LidDrivenCavity :: validityCheck(int n){      // function is made inline to reduce computation time
     if (dt < Re*dx*dy/4 ){
         if (Px*Py == n){
-            return 2;
+            if (Px != 1 && Py != 1) {
+                return 3;
+            }
+            else return 2;
         }
         else return 1;
     }
     else return 0;
 }
 
+// Output private value
 void LidDrivenCavity::OutputVal(double* ptr_double, int* ptr_int){
     int newX = Nx/Px, newY = Ny/Py, myMod_x = Nx%Px, myMod_y = Ny%Py;
     double data_double[5] = {dx,dy,dt,T,Re};
-    int data_int[6] = {newX,newY,myMod_x,myMod_y,Px,Py};
-    for(int i = 0; i < 6; i++){
+    int data_int[8] = {newX,newY,myMod_x,myMod_y,Px,Py,Nx,Ny};
+    for(int i = 0; i < 8; i++){
         ptr_int[i] = data_int[i];
     }
     for(int i = 0; i < 5; i++){
@@ -118,12 +125,30 @@ void LidDrivenCavity::OutputVal(double* ptr_double, int* ptr_int){
     }
 }
 
+// Input private value
 void LidDrivenCavity::InputVal(double* ptr_double, int* ptr_int, int rank){
     dx = ptr_double[0];
     dy = ptr_double[1];
     dt = ptr_double[2];
     T  = ptr_double[3];
     Re = ptr_double[4];
+    Px = ptr_int[4];
+    Py = ptr_int[5];
+    /* Numbering process in the entire array(e.g. Px=3, Py = 3)
+    ---------------------------------------
+    |            |            |           |
+    |      0     |      1     |      2    |
+    |            |            |           |
+    ---------------------------------------
+    |            |            |           |
+    |      3     |      4     |      5    |
+    |            |            |           |
+    ---------------------------------------
+    |            |            |           |
+    |      6     |      7     |      8    |
+    |            |            |           |
+    ---------------------------------------
+    */
     if (rank == 0){
         Nx = ptr_int[0]+ptr_int[2];
         Ny = ptr_int[1]+ptr_int[3];
@@ -142,6 +167,7 @@ void LidDrivenCavity::InputVal(double* ptr_double, int* ptr_int, int rank){
     }
 }
 
+// Create empty vorticity and stream matrix
 void LidDrivenCavity::CreateMatrix(){
     v = new double*[Ny];
     s = new double*[Ny];
@@ -157,19 +183,79 @@ void LidDrivenCavity::CreateMatrix(){
     }
 }
 
-void LidDrivenCavity::currentOmegaBC(){
-    for(int i = 0; i < Nx; i++){
-        v[0][i] = (s[0][i] - s[1][i])*2/pow(dy,2) - 2*U/dy; // top boundary
-        v[Ny-1][i] = (s[Ny-1][i] - s[Ny-2][i])*2/pow(dy,2); // bottom boundary
+// running the algorithm
+void LidDrivenCavity::Integrate(int* ptr, int rank){
+    double time = 0.0; 
+    int Pos[4] = {0};                               // [top,bot,left,right]           
+    if (ptr[0] == 0 && ptr[1] == 0){                // [1,0,1,0]
+        Pos[0] = 1;
+        Pos[2] = 1;
+    }          
+    else if (ptr[0] == 0 && ptr[1] == (Px - 1)) {     //[1,0,0,1]
+        Pos[0] = 1;
+        Pos[3] = 1;        
     }
-
-    for(int i = 1; i < Ny - 1; i++){
-        v[i][0] = (s[i][0] - s[i][1])*2/pow(dx,2); // left
-        v[i][Nx-1] = (s[i][Nx-1] - s[i][Nx-2])*2/pow(dx,2); // right
+    else if (ptr[0] == (Py - 1) && ptr[1] == 0){      //[0,1,1,0]
+        Pos[1] = 1;
+        Pos[2] = 1; 
     }
+    else if (ptr[0] == (Py - 1) && ptr[1] == (Px - 1)){ //[0,1,0,1]
+        Pos[1] = 1;
+        Pos[3] = 1;    
+    }
+    else if (ptr[0] == 0){                          //[1,0,0,0]
+        Pos[0] = 1;
+    }
+    else if (ptr[0] == (Py - 1)){                     //[0,1,0,0]
+        Pos[1] = 1;
+    }
+    else if(ptr[1] == 0){                           //[0,0,1,0]
+        Pos[2] = 1;
+    }
+    else if(ptr[1] == (Px - 1)){                      //[]0,0,0,1]
+        Pos[3] = 1;                                 
+    }
+    cout << rank << ' ' << Pos[0] << ' ' << Pos[1] << ' ' << Pos[2] << ' ' << Pos[3] << endl;
+    while(time <= T){                                  
+        if(time == 0 && rank == 0) cout << "Simulation running..." << endl;
+        this->currentOmegaBC(Pos);
+        //this->currentOmegaInt(Pos);
+        //this->nextOmegaInt(Pos);
+        //if(rank == 0) cout << time << endl;
+        time += dt;
+    }
+    if (rank == 0) cout << "Not finished yet" << endl;
 }
 
-void LidDrivenCavity::currentOmegaInt(){
+void LidDrivenCavity::currentOmegaBC(int* pos){
+    // process includes top boundary
+    if(pos[0] == 1){                                        
+        for(int i = 0; i < Nx; i++){
+            v[0][i] = (s[0][i] - s[1][i])*2/pow(dy,2) - 2*U/dy; // update top boundary
+        }
+    }
+    // process includes bottom boundary
+    if(pos[1] == 1){
+        for(int i = 0; i < Nx; i++){
+            v[Ny-1][i] = (s[Ny-1][i] - s[Ny-2][i])*2/pow(dy,2); // update bottom boundary
+        }                
+    }
+    // process includes left boundary
+    if(pos[2] == 1){
+        for(int i = 1; i < Ny - 1; i++){
+            v[i][0] = (s[i][0] - s[i][1])*2/pow(dx,2); // update left boundary
+        }
+    }
+    // process includes right boundary
+    if(pos[3] == 1){
+        for(int i = 1; i < Ny - 1; i++){
+            v[i][Nx-1] = (s[i][Nx-1] - s[i][Nx-2])*2/pow(dx,2); // update right boundary
+        }
+    }
+
+}
+
+void LidDrivenCavity::currentOmegaInt(int* pos){
     for(int i = 1; i < Nx - 1; i++){
         for(int j = 0; j < Ny - 1; j++){
             v[i][j] = (s[i][j+1] - 2*s[i][j] + s[i][j-1])/pow(dx,2) + (s[i-1][j] - 2*s[i][j] + s[i+1][j])/pow(dy,2);
@@ -177,7 +263,7 @@ void LidDrivenCavity::currentOmegaInt(){
     }
 }
 
-void LidDrivenCavity:: nextOmegaInt(){
+void LidDrivenCavity:: nextOmegaInt(int* pos){
     double part1 = 0, part2 = 0, part3 = 0;
     for(int i = 1; i < Nx - 1; i++){
         for(int j = 0; j < Ny - 1; j++){
@@ -189,25 +275,15 @@ void LidDrivenCavity:: nextOmegaInt(){
     }    
 }
 
-void LidDrivenCavity::Integrate(int rank){
-    double time = 0.0;
-    while(time <= T){                                  // only integrate if both array has been given the value
-        if(time == 0) cout << "Simulation running..." << endl;
-        this->currentOmegaBC();
-        this->currentOmegaInt();
-        this->nextOmegaInt();
-        cout << time << endl;
-        time += dt;
-    }
-    std::cout << "Not finished yet" << std::endl;
-}
-
-void LidDrivenCavity::GetObj(){
-    ofstream Vout("Stream.dat",ios::out|ios::trunc);
+void LidDrivenCavity::GetObj(int* ptr, int rank){
+    string row = to_string(ptr[0]);
+    string colum = to_string(ptr[1]);
+    string filename = "rank_" + to_string(rank) + "_coord_" + row + '_' + colum;
+    ofstream Vout(filename.c_str(),ios::out|ios::trunc);
         Vout.precision(5);
         if(Vout.good()){                            // check if the file is ready to write
-            for(int i = 0; i < Nx; i++){            // output the stream function
-                for(int j = 0; j < Ny; j++){
+            for(int i = 0; i < Ny; i++){            // output the stream function
+                for(int j = 0; j < Nx; j++){
                     Vout << setw(10) << fixed << left << s[i][j];
                 }
                 Vout << endl;
@@ -215,8 +291,8 @@ void LidDrivenCavity::GetObj(){
 
             Vout << endl << endl;
 
-            for(int i = 0; i < Nx; i++){            // output the vorticity function
-                for(int j = 0; j < Ny; j++){
+            for(int i = 0; i < Ny; i++){            // output the vorticity function
+                for(int j = 0; j < Nx; j++){
                     Vout << setw(10) << fixed << left << v[i][j];
                 }
                 Vout << endl;
@@ -235,6 +311,6 @@ void LidDrivenCavity::deallocate(){
 }
 
 void LidDrivenCavity::valueCheck(){
-    cout << "Nx = " << Nx << endl << "Ny = " << Ny << endl;
+    cout << "dx = " << dx << endl << "dy = " << dy << endl;
 }
 
