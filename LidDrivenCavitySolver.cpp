@@ -68,16 +68,16 @@ int main(int argc, char *argv[]){
         // Topology Optimisation and rearrange the metrix
         MPI_Cart_create(MPI_COMM_WORLD,2,dim,period,1,&comm);
         MPI_Cart_coords(comm, rank, 2, coord);
-        cout << "This is rank" << rank << endl;
-        cout << "Coordinates after toplogy: " << endl;
-        cout << coord[0] << ' '<< coord[1] << endl;
+        //cout << "This is rank" << rank << endl;
+        //cout << "Coordinates after toplogy: " << endl;
+        //cout << coord[0] << ' '<< coord[1] << endl;
         
 
         // Read data broadcasted from root
         solver->InputVal(data_doub,data_int,rank);
 
         //check accuracy of individual rank dimension, then create matrix
-        //solver->valueCheck();
+        solver->valueCheck();
         solver->CreateMatrix();
         MPI_Barrier(comm);
 
@@ -85,17 +85,16 @@ int main(int argc, char *argv[]){
         // --------------------Run the solver in parallel-----------------------------------------------
 
 
-        solver->Integrate(coord,rank);
-        solver->GetObj(coord,rank);
+        solver->Integrate(coord,rank,comm);
 
 
         // --------Collect vorticity and stream matrix from each process and output in one dat file------
 
-        if (rank == 0){ // create empty array as gather dentination
-            double v1[161][161] = {0};
-            double s1[161][161] = {0};
-        }
 
+        // extract two matrices on each process and gather 
+        //solver->gather(comm,rank,size,coord);
+        //MPI_Barrier(comm);
+        solver->GetObj(coord,rank);
 
 
         //-------------------------Return memory--------------------------------------------------------
