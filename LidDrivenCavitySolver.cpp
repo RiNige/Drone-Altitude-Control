@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
             }
 
             // extract user input from class and broadcast to other processes
-             solver->OutputVal(data_doub,data_int);
+            solver->OutputVal(data_doub,data_int);
         }
 
         // all processes wait until root process finish reading data
