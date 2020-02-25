@@ -7,7 +7,7 @@ using namespace std;
 int main(int argc, char *argv[]){
 
 
-    //------------------------------------- MPI configuretion-----------------------------------------
+    //============================================ MPI configuretion==========================================
 
 
     int rank = 0, size = 0, root = 0; // specify rank 0 as root processor
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]){
         int* data_int = new int[8];        // store int type input for each process
 
 
-        // ----------------read input from user and check validity on root process-----------------------
+        // =================read input from user and check validity on root process==========================
 
 
         if (rank == root){
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]){
         MPI_Barrier(MPI_COMM_WORLD);
 
 
-        // ----------------Boradcast input to all processed and intialise matrix-----------------------
+        // ====================Boradcast input to all processed and intialise matrix========================
 
 
         MPI_Bcast(data_doub,5,MPI_DOUBLE,root,MPI_COMM_WORLD);
@@ -68,9 +68,6 @@ int main(int argc, char *argv[]){
         // Topology Optimisation and rearrange the metrix
         MPI_Cart_create(MPI_COMM_WORLD,2,dim,period,1,&comm);
         MPI_Cart_coords(comm, rank, 2, coord);
-        //cout << "This is rank" << rank << endl;
-        //cout << "Coordinates after toplogy: " << endl;
-        //cout << coord[0] << ' '<< coord[1] << endl;
         
 
         // Read data broadcasted from root
@@ -82,22 +79,21 @@ int main(int argc, char *argv[]){
         MPI_Barrier(comm);
 
 
-        // --------------------Run the solver in parallel-----------------------------------------------
+        // =====================================Run the solver in parallel=====================================
 
 
         solver->Integrate(coord,rank,comm);
 
 
-        // --------Collect vorticity and stream matrix from each process and output in one dat file------
+        // =============Collect vorticity and stream matrix from each process and output in one dat fil========
 
 
         // extract two matrices on each process and gather 
         //solver->gather(comm,rank,size,coord);
-        //MPI_Barrier(comm);
         solver->GetObj(coord,rank);
 
 
-        //-------------------------Return memory--------------------------------------------------------
+        //============================================Return memory============================================
 
 
         solver->deallocate();
