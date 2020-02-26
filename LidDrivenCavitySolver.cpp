@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
         solver->InputVal(data_doub,data_int,rank);
 
         //check accuracy of individual rank dimension, then create matrix
-        solver->valueCheck();
+        // solver->valueCheck();
         solver->CreateMatrix();
         MPI_Barrier(comm);
 

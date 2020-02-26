@@ -3,6 +3,7 @@
 # include <fstream>
 # include <iomanip>
 # include <cmath>
+#include <numeric>
 # include <stdlib.h>
 using namespace std;
 
@@ -13,8 +14,8 @@ class Poisson{
         Poisson();
         ~Poisson();
         Poisson& operator=(const Poisson & input);
-        void createBmatrix(int x, int y, double** f, double** u);
-        void updateJacobi(int x, int y, int Px, int Py, double** u, double dx, double dy,int* pos, int* coord, MPI_Comm comm);
+        void createBmatrix(int x, int y, double** f, double** u,int count);
+        void updateJacobi(int x, int y, int Px, int Py, double** u, double dx, double dy,int* pos, int* coord, MPI_Comm comm, int rank);
         void deallocate(int x, int y);
     private:
         double** b;
@@ -99,18 +100,21 @@ Poisson& Poisson::operator=(const Poisson & input){
 
 
 // creating B matrix based on given size, and assign values
-void Poisson::createBmatrix(int x, int y, double** f, double** u){
-    b = new double*[y];
-    u_temp = new double*[y];
-    u_init = new double*[y];
-    error = new double*[y];
+void Poisson::createBmatrix(int x, int y, double** f, double** u, int count){
+    if (count == 0){
+        b = new double*[y];
+        u_temp = new double*[y];
+        u_init = new double*[y];
+        error = new double*[y];
 
-    for (int i = 0; i < y; i++){
-        b[i] = new double[x];
-        u_temp[i] = new double[x];
-        u_init[i] = new double[x];
-        error[i] = new double[x];
+        for (int i = 0; i < y; i++){
+            b[i] = new double[x];
+            u_temp[i] = new double[x];
+            u_init[i] = new double[x];
+            error[i] = new double[x];
+        }
     }
+
     for(int i = 0; i < y; i++){
         for(int j = 0; j < x; j++){
             b[i][j] = f[i][j];
@@ -124,10 +128,11 @@ void Poisson::createBmatrix(int x, int y, double** f, double** u){
 
 
 // updating stream matrix by jacobi's method
-void Poisson::updateJacobi(int x, int y, int Px, int Py, double** u, double dx, double dy, int* pos, int* coord, MPI_Comm comm){
+void Poisson::updateJacobi(int x, int y, int Px, int Py, double** u, double dx, double dy, int* pos, int* coord, MPI_Comm comm, int rank){
     int count = 0;
     double rho = 1e-3;
     double error_tot = 0.0;
+    double error_reduce = 0.0;
     double* buff_top_recv = new double[x];
     double* buff_bot_recv = new double[x];
     double* buff_left_send = new double[y];
@@ -135,6 +140,8 @@ void Poisson::updateJacobi(int x, int y, int Px, int Py, double** u, double dx, 
     double* buff_right_send = new double[y];
     double* buff_right_recv = new double[y];
     while(1){
+        error_tot = 0.0;
+        error_reduce = 0.0;
         if(pos[0] == 0){                                                        //top
             MPI_Send(&(u[0][0]),x,MPI_DOUBLE,(coord[0]-1)*Px+coord[1],0,comm);
             MPI_Recv(&(buff_top_recv[0]),x,MPI_DOUBLE,(coord[0]-1)*Px+coord[1],0,comm,MPI_STATUS_IGNORE);
@@ -162,8 +169,8 @@ void Poisson::updateJacobi(int x, int y, int Px, int Py, double** u, double dx, 
         for(int i = 1; i < y-1; i++){
             for(int j = 1; j < x-1; j++){
                 u_temp[i][j] = (u[i-1][j] + u[i+1][j] + u[i][j-1] + u[i][j+1] + dx*dy*b[i][j])/4;
-                error[i][j] = pow((u_temp[i][j] - u_init[i][j]),2);
-                error_tot += error[i][j];
+                error[i][j] = pow((u_temp[i][j] - u[i][j]),2);
+                // error_tot += error[i][j];
             }
         }
 
@@ -171,67 +178,77 @@ void Poisson::updateJacobi(int x, int y, int Px, int Py, double** u, double dx, 
         if(pos[0] == 0){ // update top
             for(int i = 1; i < x-1; i++){
                 u_temp[0][i] = (buff_top_recv[i] + u[1][i] + u[0][i-1] + u[0][i+1] + dx*dy*b[0][i])/4;
-                error[0][i] = pow((u_temp[0][i] - u_init[0][i]),2);
-                error_tot += error[0][i];
+                error[0][i] = pow((u_temp[0][i] - u[0][i]),2);
+                //error_tot += error[0][i];
             }
         }
         if(pos[1] == 0){ // update bot
             for(int i = 1; i < x-1; i++){
                 u_temp[y-1][i] = (u[y-2][i]  + buff_bot_recv[i] + u[y-1][i-1] + u[y-1][i+1] + dx*dy*b[y-1][i])/4;
-                error[y-1][i] = pow((u_temp[y-1][i] - u_init[y-1][i]),2);
-                error_tot += error[y-1][i];
+                error[y-1][i] = pow((u_temp[y-1][i] - u[y-1][i]),2);
+                // error_tot += error[y-1][i];
             }
         }
         if(pos[2] == 0){ // update left
             for(int i = 1; i < y-1; i++){
                 u_temp[i][0] = (u[i-1][0]  + u[i+1][0] + buff_left_recv[i] + u[i][1] + dx*dy*b[i][0])/4;
-                error[i][0] = pow((u_temp[i][0] - u_init[i][0]),2);
-                error_tot += error[i][0];
+                error[i][0] = pow((u_temp[i][0] - u[i][0]),2);
+                // error_tot += error[i][0];
             }
         }
         if(pos[3] == 0){ // update right
             for(int i = 1; i < y-1; i++){
                 u_temp[i][x-1] = (u[i-1][x-1]  + u[i+1][x-1] + u[i][x-2] + buff_right_recv[i] + dx*dy*b[i][x-1])/4;
-                error[i][x-1] = pow((u_temp[i][x-1] - u_init[i][x-1]),2);
-                error_tot += error[i][x-1];
+                error[i][x-1] = pow((u_temp[i][x-1] - u[i][x-1]),2);
+                // error_tot += error[i][x-1];
             }
         }
 
 //update four corner
-    if(pos[0] == 0 && pos[2] == 0){ // update top left corner
-       u_temp[0][0] = (buff_top_recv[0] + u[1][0] + buff_left_recv[0] + u[0][1] + dx*dy*b[0][0])/4;
-    }
-    if(pos[0] == 0 && pos[3] == 0){ // update top right corner
-        u_temp[0][x-1] = (buff_top_recv[x-1] + u[1][x-1] + u[0][x-2] + buff_right_recv[0]+ dx*dy*b[0][x-1])/4;
-    }
-    if(pos[1] == 0 && pos[2] == 0){ // update bottom left corner
-        u_temp[y-1][0] = (u[y-2][0] + buff_bot_recv[0] + buff_left_recv[y-1] + u[y-1][1] + dx*dy*b[y-1][0])/4;
-    }
-    if(pos[1] == 0 && pos[3] == 0){ // update bottom right corner
-        u_temp[y-1][x-1] = (u[y-2][x-1] + buff_bot_recv[x-1] + u[y-1][x-2] + buff_right_recv[y-1] + dx*dy*b[y-1][x-1])/4;
-    }
-        double error_tot1 = sqrt(error_tot);
+        if(pos[0] == 0 && pos[2] == 0){ // update top left corner
+            u_temp[0][0] = (buff_top_recv[0] + u[1][0] + buff_left_recv[0] + u[0][1] + dx*dy*b[0][0])/4;
+            error[0][0] = pow((u_temp[0][0] - u[0][0]),2);
+        }
+        if(pos[0] == 0 && pos[3] == 0){ // update top right corner
+            u_temp[0][x-1] = (buff_top_recv[x-1] + u[1][x-1] + u[0][x-2] + buff_right_recv[0]+ dx*dy*b[0][x-1])/4;
+            error[0][x-1] = pow((u_temp[0][x-1] - u[0][x-1]),2);
+        }
+        if(pos[1] == 0 && pos[2] == 0){ // update bottom left corner
+            u_temp[y-1][0] = (u[y-2][0] + buff_bot_recv[0] + buff_left_recv[y-1] + u[y-1][1] + dx*dy*b[y-1][0])/4;
+            error[y-1][0] = pow((u_temp[y-1][0] - u[y-1][0]),2);
+        }
+        if(pos[1] == 0 && pos[3] == 0){ // update bottom right corner
+            u_temp[y-1][x-1] = (u[y-2][x-1] + buff_bot_recv[x-1] + u[y-1][x-2] + buff_right_recv[y-1] + dx*dy*b[y-1][x-1])/4;
+            error[y-1][x-1] = pow((u_temp[y-1][x-1] - u[y-1][x-1]),2);
+        }
 
-    //     // substituting u with u_temp
+        // substituting u with u_temp
         for(int i = 0; i < y; i++){
             for(int j = 0; j < x; j++){
                 u[i][j] = u_temp[i][j];
+                // cout << error[i][j] << " ";
+                // if(coord[0] == 0 && coord[1] == 0){
+                error_tot += error[i][j];
+                // }    
             }
+                // cout << endl;
         }
-        
-    // if((error_tot < 1e-9)){
-    if((count > 500)){
-            cout << "Solution converged at error: " << error_tot << endl;
+        error_tot = sqrt(error_tot);
+        MPI_Reduce(&(error_tot),&(error_reduce),1,MPI_DOUBLE,MPI_SUM,0,comm);
+        //if(rank == 0) cout << "Reduced error: " << error_reduce  << " local error: " << error_tot << endl;
+        MPI_Bcast(&(error_reduce),1,MPI_DOUBLE,0,comm);
+        if(error_reduce < 1e-7){
+            cout << "Solution converged at step: " << error_reduce << endl;
             error_tot = 0;
             break;
-        }else if(count > 1000){
-            cout << "Failed to converge due to large step size" << endl;
+        }else if(count > 5000){
+            cout << "Failed to converge due to error: "<< error_reduce << endl;
             break;
         }else{
             count++;
         }
+    
     }
-
     // return the memory allocated
     delete[] buff_top_recv;
     delete[] buff_bot_recv;
@@ -248,9 +265,13 @@ void Poisson::deallocate(int x, int y){
     for(int i = 0; i < y; i++){
         delete[] b[i];
         delete[] u_temp[i];
+        delete[] error[i];
+        delete[] u_init[i];
     }
     delete[] b;
     delete[] u_temp;
+    delete[] error;
+    delete[] u_init;
 }
 //==========================LidDrivenCavity Class member function=====================
 // Empty constructor
@@ -415,6 +436,7 @@ void LidDrivenCavity::CreateMatrix(){
 
 // running the algorithm
 void LidDrivenCavity::Integrate(int* coord, int rank,MPI_Comm comm){
+    int count = 0;
     double time = 0.0; 
     int Pos[4] = {0};                               // [top,bot,left,right]           
     if (coord[0] == 0 && coord[1] == 0){                // [1,0,1,0]
@@ -450,13 +472,15 @@ void LidDrivenCavity::Integrate(int* coord, int rank,MPI_Comm comm){
         this->currentOmegaBC(Pos);
         this->currentOmegaInt(Pos,coord,comm);
         this->nextOmegaInt(Pos,coord,comm);
-        Poi.createBmatrix(Nx,Ny,v,s);
-        Poi.updateJacobi(Nx,Ny,Px,Py,s,dx ,dy,Pos,coord,comm);
+        Poi.createBmatrix(Nx,Ny,v,s,count);
+        Poi.updateJacobi(Nx,Ny,Px,Py,s,dx ,dy,Pos,coord,comm,rank);
         MPI_Barrier(comm);
         if(rank == 0) cout << "t = " << time << endl;
         time += dt;
+        count++;
     }
     if (rank == 0) cout << "Simulation finished" << endl;
+    Poi.deallocate(Nx,Ny);
 }
 
 
