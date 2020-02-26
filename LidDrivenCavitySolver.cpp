@@ -89,7 +89,6 @@ int main(int argc, char *argv[]){
 
 
         // extract two matrices on each process and gather 
-        //solver->gather(comm,rank,size,coord);
         solver->GetObj(coord,rank);
 
 

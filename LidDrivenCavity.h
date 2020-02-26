@@ -117,7 +117,7 @@ void Poisson::createBmatrix(int x, int y, double** f, double** u, int count){
 
     for(int i = 0; i < y; i++){
         for(int j = 0; j < x; j++){
-            b[i][j] = f[i][j];
+            b[i][j] = -0.5*f[i][j];
             u_temp[i][j] = 0.0;
             u_init[i][j] = u[i][j];
             error[i][j] = 0.0;
@@ -238,7 +238,7 @@ void Poisson::updateJacobi(int x, int y, int Px, int Py, double** u, double dx, 
         //if(rank == 0) cout << "Reduced error: " << error_reduce  << " local error: " << error_tot << endl;
         MPI_Bcast(&(error_reduce),1,MPI_DOUBLE,0,comm);
         if(error_reduce < 1e-7){
-            cout << "Solution converged at step: " << error_reduce << endl;
+            cout << "Solution converged at step: " << count << endl;
             error_tot = 0;
             break;
         }else if(count > 5000){

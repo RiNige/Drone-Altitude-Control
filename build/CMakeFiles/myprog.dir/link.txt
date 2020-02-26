@@ -1,0 +1,1 @@
+/Library/Developer/CommandLineTools/usr/bin/c++   -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/myprog.dir/LidDrivenCavitySolver.cpp.o  -o myprog  /usr/local/Cellar/open-mpi/4.0.2/lib/libmpi.dylib 

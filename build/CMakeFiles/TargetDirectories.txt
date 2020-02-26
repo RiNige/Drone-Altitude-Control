@@ -1,0 +1,3 @@
+/Users/tianwang/dropbox/HPC/coursework/Code/build/CMakeFiles/rebuild_cache.dir
+/Users/tianwang/dropbox/HPC/coursework/Code/build/CMakeFiles/edit_cache.dir
+/Users/tianwang/dropbox/HPC/coursework/Code/build/CMakeFiles/myprog.dir
